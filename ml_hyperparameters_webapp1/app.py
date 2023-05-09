@@ -6,44 +6,70 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import plot_confusion_matrix, plot_roc_curve, plot_precision_recall_curve
+# from sklearn.metrics import plot_confusion_matrix, plot_roc_curve, plot_precision_recall_curve
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, roc_curve, auc, RocCurveDisplay, PrecisionRecallDisplay
 from sklearn.metrics import precision_score, recall_score
 
 def main():
     st.title("Binary Classification Web App")
     st.sidebar.title("Binary Classification Web App")
     st.markdown("Are your mushrooms edible or poisonous? 🍄")
+    st.markdown("Class mapping is like: 0 is edible & 1 is poisonous")
     st.sidebar.markdown("Are your mushrooms edible or poisonous? 🍄")
+    global mapping
 
-    @st.cache(persist=True)
+    @st.cache_data
     def load_data():
-        data = pd.read_csv("path\\to\\mushrooms.csv")
-        labelencoder=LabelEncoder()
+        data = pd.read_csv("./mushrooms.csv")
+        labelencoder = LabelEncoder()
         for col in data.columns:
             data[col] = labelencoder.fit_transform(data[col])
         return data
     
-    @st.cache(persist=True)
+    @st.cache_data
     def split(df):
         y = df.type
         x = df.drop(columns=['type'])
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=0)
         return x_train, x_test, y_train, y_test
     
+    def inverse_transform(y):
+        ls = []
+        for i in  y:
+            if i == 0:
+                ls.append("edible")
+            elif i == 1:
+                ls.append("poisonous")
+        return ls
+
+    
     def plot_metrics(metrics_list):
         if 'Confusion Matrix' in metrics_list:
             st.subheader("Confusion Matrix")
-            plot_confusion_matrix(model, x_test, y_test, display_labels=class_names)
+            y_test_inv = inverse_transform(y_test)
+            y_pred_inv = inverse_transform(y_pred)
+            cm = confusion_matrix(y_test_inv, y_pred_inv, labels= class_names)
+            disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
+            disp.plot()
+            st.set_option('deprecation.showPyplotGlobalUse', False)
             st.pyplot()
 
         if 'ROC Curve' in metrics_list:
             st.subheader("ROC Curve")
-            plot_roc_curve(model, x_test, y_test)
+            # plot_roc_curve(model, x_test, y_test)
+            fpr, tpr, thresholds = roc_curve(y_test, y_pred, pos_label= [1])
+            roc_auc = auc(fpr, tpr)
+            display = RocCurveDisplay(fpr=fpr, tpr=tpr, roc_auc=roc_auc)
+            display.plot()
+            st.set_option('deprecation.showPyplotGlobalUse', False)
             st.pyplot()
         
         if 'Precision-Recall Curve' in metrics_list:
             st.subheader('Precision-Recall Curve')
-            plot_precision_recall_curve(model, x_test, y_test)
+            # plot_precision_recall_curve(model, x_test, y_test)
+            display = PrecisionRecallDisplay.from_predictions(y_test, y_pred)
+            _ = display.ax_.set_title("2-class Precision-Recall curve")
+            st.set_option('deprecation.showPyplotGlobalUse', False)
             st.pyplot()
 
     df = load_data()
